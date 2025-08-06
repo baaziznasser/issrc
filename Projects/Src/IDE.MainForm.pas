@@ -115,6 +115,8 @@ type
     EReplace: TMenuItem;
     HMenu: TMenuItem;
     HDoc: TMenuItem;
+    HCheckForUpdates: TMenuItem;
+    N26: TMenuItem;
     HAbout: TMenuItem;
     FRecent: TMenuItem;
     FClearRecent: TMenuItem;
@@ -278,6 +280,7 @@ type
     procedure FNewMainFileClick(Sender: TObject);
     procedure FNewMainFileUserWizardClick(Sender: TObject);
     procedure HDocClick(Sender: TObject);
+    procedure HCheckForUpdatesClick(Sender: TObject);
     procedure BCompileClick(Sender: TObject);
     procedure FMenuClick(Sender: TObject);
     procedure FMRUClick(Sender: TObject);
@@ -684,7 +687,7 @@ uses
   IDE.OptionsForm, IDE.StartupForm, IDE.Wizard.WizardForm, IDE.SignToolsForm,
   Shared.ConfigIniFile, Shared.SignToolsFunc, IDE.InputQueryComboForm, IDE.MsgBoxDesignerForm,
   IDE.FilesDesignerForm, IDE.RegistryDesignerForm, IDE.Wizard.WizardFormRegistryHelper,
-  Shared.CompilerInt;
+  Shared.CompilerInt, Net.HTTPClient, Net.URLClient, NetEncoding;
 
 {$R *.DFM}
 
@@ -3512,6 +3515,63 @@ end;
 procedure TMainForm.HWebsiteClick(Sender: TObject);
 begin
   LaunchFileOrURL('https://jrsoftware.org/isinfo.php');
+end;
+
+procedure TMainForm.HCheckForUpdatesClick(Sender: TObject);
+var
+  HTTPClient: THTTPClient;
+  Response: IHTTPResponse;
+  Stream: TStringStream;
+  S, LatestVersion: String;
+  P: Integer;
+begin
+  Screen.Cursor := crHourGlass;
+  try
+    try
+      HTTPClient := THTTPClient.Create;
+      try
+        HTTPClient.UserAgent := FCompilerVersion.Title + ' ' + String(FCompilerVersion.Version);
+        HTTPClient.SecureProtocols := [THTTPSecureProtocol.TLS1, THTTPSecureProtocol.TLS11, THTTPSecureProtocol.TLS12];
+        Stream := TStringStream.Create('', TEncoding.UTF8);
+        try
+          HTTPClient.Get('https://jrsoftware.org/isinfo.php', Stream);
+          S := Stream.DataString;
+        finally
+          Stream.Free;
+        end;
+      finally
+        HTTPClient.Free;
+      end;
+
+      P := Pos('version=', S);
+      if P > 0 then begin
+        Delete(S, 1, P + Length('version=') - 1);
+        P := Pos(#10, S);
+        if P > 0 then
+          LatestVersion := Trim(Copy(S, 1, P - 1))
+        else
+          LatestVersion := Trim(S);
+
+        if LatestVersion <> '' then begin
+          if LatestVersion = String(FCompilerVersion.Version) then
+            MsgBox('You are using the latest version of Inno Setup.', SCompilerFormCaption, mbInformation, MB_OK)
+          else
+            if MsgBox('A new version of Inno Setup is available. Do you want to open the download page?', SCompilerFormCaption, mbConfirmation, MB_YESNO) = IDYES then
+              LaunchFileOrURL('https://jrsoftware.org/isdl.php');
+        end
+        else
+          MsgBox('Could not determine the latest version.', SCompilerFormCaption, mbError, MB_OK);
+      end
+      else
+        MsgBox('Could not determine the latest version.', SCompilerFormCaption, mbError, MB_OK);
+
+    except
+      on E: Exception do
+        MsgBox('Error checking for updates: ' + E.Message, SCompilerFormCaption, mbError, MB_OK);
+    end;
+  finally
+    Screen.Cursor := crDefault;
+  end;
 end;
 
 procedure TMainForm.HMailingListClick(Sender: TObject);

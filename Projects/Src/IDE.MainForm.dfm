@@ -941,6 +941,13 @@ object MainForm: TMainForm
       object HISPPSep: TMenuItem
         Caption = '-'
       end
+      object HCheckForUpdates: TMenuItem
+        Caption = 'Check for &Updates...'
+        OnClick = HCheckForUpdatesClick
+      end
+      object N26: TMenuItem
+        Caption = '-'
+      end
       object HAbout: TMenuItem
         Caption = '&About Inno Setup'
         OnClick = HAboutClick
